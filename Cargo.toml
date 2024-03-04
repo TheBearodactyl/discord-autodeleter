@@ -1,0 +1,14 @@
+[package]
+name = "fuckyouspammer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+poise = "0.6.1"
+reqwest = "0.11.24"
+serde = { version = "1.0.197", features = ["derive"] }
+serde_json = "1.0.114"
+serenity = { version = "0.10.0", features = ["gateway", "extras", "model", "collector", "unstable_discord_api", "reqwest"] }
+serenity-rich-interaction = "0.3.1"
+tokio = { version = "1.36.0", features = ["full"] }
