@@ -90,7 +90,7 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
-    let token = "MTIwNzM4MDkxNTQ1ODgwNTgwMA.Gw0Zcl.YrtSW4tuNjw7HbWII3mvLzUCet0K62R2jH3-TI";
+    let token = "MTIwNzM4MDkxNTQ1ODgwNTgwMA.Gbb4Xb.l6oYGRUObL8FRAdIcDf1ehnOSCVum_HaSU6jn4";
     let aid = 1207380915458805800;
 
     let autodelete_role: Arc<Mutex<Option<RoleId>>> = Arc::new(Mutex::new(None));
