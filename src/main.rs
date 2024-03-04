@@ -1,4 +1,3 @@
-#![feature(if_let_guard)]
 use {
     serenity::{
         async_trait,
