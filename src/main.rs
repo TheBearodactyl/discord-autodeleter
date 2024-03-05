@@ -15,7 +15,7 @@ use {
         prelude::TypeMapKey,
         Client,
     },
-    std::sync::Arc,
+    std::{collections::HashSet, sync::Arc},
     tokio::sync::Mutex,
 };
 
@@ -24,14 +24,14 @@ use {
 struct General;
 
 struct Handler {
-    autodelete_role: Arc<Mutex<Option<RoleId>>>,
+    autodelete_roles: Arc<Mutex<HashSet<RoleId>>>,
     counter: Arc<Mutex<u32>>,
 }
 
 impl Handler {
-    fn new(autodelete_role: Arc<Mutex<Option<RoleId>>>, counter: Arc<Mutex<u32>>) -> Self {
+    fn new(autodelete_roles: Arc<Mutex<HashSet<RoleId>>>, counter: Arc<Mutex<u32>>) -> Self {
         Self {
-            autodelete_role,
+            autodelete_roles,
             counter,
         }
     }
@@ -46,13 +46,13 @@ impl Handler {
 }
 
 impl TypeMapKey for Handler {
-    type Value = Arc<Mutex<Option<RoleId>>>;
+    type Value = Arc<Mutex<HashSet<RoleId>>>;
 }
 
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        let autodelete_role = self.autodelete_role.clone();
+        let autodelete_roles = self.autodelete_roles.clone();
         let counter = self.counter.clone();
 
         tokio::spawn(async move {
@@ -60,9 +60,9 @@ impl EventHandler for Handler {
                 return;
             }
 
-            let autodelete_role = autodelete_role.lock().await;
+            let autodelete_roles = autodelete_roles.lock().await;
 
-            if let Some(role_id) = &*autodelete_role {
+            for role_id in &*autodelete_roles {
                 if msg
                     .author
                     .has_role(&ctx, GuildId(917057579039989770), *role_id)
@@ -75,6 +75,7 @@ impl EventHandler for Handler {
                     if let Err(why) = msg.delete(&ctx).await {
                         eprintln!("Error deleting message: {:?}", why);
                     }
+                    break; // Break after deleting the message for the first matching role.
                 }
             }
         });
@@ -92,9 +93,9 @@ async fn main() {
     let token = dotenv::var("DISCORD_TOKEN").unwrap();
     let aid = 1207380915458805800;
 
-    let autodelete_role: Arc<Mutex<Option<RoleId>>> = Arc::new(Mutex::new(None));
+    let autodelete_roles: Arc<Mutex<HashSet<RoleId>>> = Arc::new(Mutex::new(HashSet::new()));
     let counter = Arc::new(Mutex::new(0));
-    let handler = Handler::new(autodelete_role.clone(), counter.clone());
+    let handler = Handler::new(autodelete_roles.clone(), counter.clone());
 
     let framework = StandardFramework::new()
         .configure(|c| c.prefix("!"))
@@ -110,7 +111,7 @@ async fn main() {
 
     {
         let mut data = client.data.write().await;
-        data.insert::<Handler>(autodelete_role);
+        data.insert::<Handler>(autodelete_roles);
     }
 
     if let Err(why) = client.start().await {
@@ -138,10 +139,10 @@ async fn my_help(
 async fn setrole(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let role_id: RoleId = args.single()?;
     let mut data = ctx.data.write().await;
-    let autodelete_role = data.get_mut::<Handler>().unwrap();
-    *autodelete_role.lock().await = Some(role_id);
+    let autodelete_roles = data.get_mut::<Handler>().unwrap();
+    autodelete_roles.lock().await.insert(role_id);
     msg.channel_id
-        .say(&ctx.http, format!("Autodelete role set to {}", role_id))
+        .say(&ctx.http, format!("Autodelete role {} added.", role_id))
         .await?;
     Ok(())
 }
@@ -149,27 +150,28 @@ async fn setrole(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult 
 #[command]
 async fn getrole(ctx: &Context, msg: &Message) -> CommandResult {
     let data = ctx.data.read().await;
-    let autodelete_role = data.get::<Handler>().unwrap();
+    let autodelete_roles = data.get::<Handler>().unwrap();
 
-    if let Some(role_id) = &*autodelete_role.lock().await {
+    let mut role_names = Vec::new();
+    for role_id in &*autodelete_roles.lock().await {
         if let Some(guild) = ctx.cache.guild(GuildId(917057579039989770)).await {
             if let Some(role) = guild.roles.get(role_id) {
-                msg.channel_id
-                    .say(&ctx.http, format!("Current autodelete role: {}", role.name))
-                    .await?;
-            } else {
-                msg.channel_id
-                    .say(&ctx.http, "Autodelete role not found.")
-                    .await?;
+                role_names.push(role.name.clone());
             }
-        } else {
-            msg.channel_id
-                .say(&ctx.http, "Error retrieving guild information.")
-                .await?;
         }
+    }
+
+    if !role_names.is_empty() {
+        let role_list = role_names.join(", ");
+        msg.channel_id
+            .say(
+                &ctx.http,
+                format!("Current autodelete roles: {}", role_list),
+            )
+            .await?;
     } else {
         msg.channel_id
-            .say(&ctx.http, "Autodelete role not set.")
+            .say(&ctx.http, "No autodelete roles set.")
             .await?;
     }
 
