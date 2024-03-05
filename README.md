@@ -1,8 +1,8 @@
-## ## DEPENDENCIES ##
+## -- *DEPENDENCIES* -- ##
 - `docker`
 - `docker-buildx`
 
-## ## HOW TO USE ##
+## -- *HOW TO USE* -- ##
 
 1. `git clone https://github.com/TheBearodactyl/discord-autodeleter.git`
 2. `cd discord-autodeleter`
