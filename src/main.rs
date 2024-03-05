@@ -1,4 +1,5 @@
 use {
+    dotenv::dotenv,
     serenity::{
         async_trait,
         client::{Context, EventHandler},
@@ -89,7 +90,7 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
-    let token = "MTIwNzM4MDkxNTQ1ODgwNTgwMA.Gbb4Xb.l6oYGRUObL8FRAdIcDf1ehnOSCVum_HaSU6jn4";
+    let token = dotenv::var("DISCORD_TOKEN").unwrap();
     let aid = 1207380915458805800;
 
     let autodelete_role: Arc<Mutex<Option<RoleId>>> = Arc::new(Mutex::new(None));
@@ -101,7 +102,7 @@ async fn main() {
         .group(&GENERAL_GROUP)
         .help(&MY_HELP);
 
-    let mut client = Client::builder(token)
+    let mut client = Client::builder(token.clone())
         .application_id(aid)
         .event_handler(handler)
         .framework(framework)

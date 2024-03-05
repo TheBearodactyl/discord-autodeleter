@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+dotenv = "0.15.0"
 serenity = { version = "0.10.0", features = ["gateway", "extras", "model", "collector", "unstable_discord_api", "reqwest"] }
 tokio = { version = "1.36.0", features = ["full"] }
