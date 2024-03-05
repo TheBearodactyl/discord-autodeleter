@@ -12,7 +12,7 @@ RUN pacman-key --init && pacman-key --populate archlinux && pacman -Syyuu --noco
 RUN git clone https://github.com/TheBearodactyl/discord-autodeleter /discord-autodeleter
 
 # Copy .env file to the specified directory
-ADD /home/emi/.local/share/junk/projects/fuckyouspammer/.env /discord-autodeleter
+ADD /home/emi/.local/share/junk/projects/fuckyouspammer/env /discord-autodeleter
 
 # Set working directory
 WORKDIR /discord-autodeleter
