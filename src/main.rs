@@ -1,5 +1,4 @@
 use {
-    dotenv::dotenv,
     serenity::{
         async_trait,
         client::{Context, EventHandler},
@@ -21,7 +20,7 @@ use {
 };
 
 #[group]
-#[commands(set_autodelete_role)]
+#[commands(setrole, getrole)]
 struct General;
 
 struct Handler {
@@ -136,7 +135,7 @@ async fn my_help(
 }
 
 #[command]
-async fn set_autodelete_role(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+async fn setrole(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
     let role_id: RoleId = args.single()?;
     let mut data = ctx.data.write().await;
     let autodelete_role = data.get_mut::<Handler>().unwrap();
@@ -144,5 +143,35 @@ async fn set_autodelete_role(ctx: &Context, msg: &Message, mut args: Args) -> Co
     msg.channel_id
         .say(&ctx.http, format!("Autodelete role set to {}", role_id))
         .await?;
+    Ok(())
+}
+
+#[command]
+async fn getrole(ctx: &Context, msg: &Message) -> CommandResult {
+    let data = ctx.data.read().await;
+    let autodelete_role = data.get::<Handler>().unwrap();
+
+    if let Some(role_id) = &*autodelete_role.lock().await {
+        if let Some(guild) = ctx.cache.guild(GuildId(917057579039989770)).await {
+            if let Some(role) = guild.roles.get(role_id) {
+                msg.channel_id
+                    .say(&ctx.http, format!("Current autodelete role: {}", role.name))
+                    .await?;
+            } else {
+                msg.channel_id
+                    .say(&ctx.http, "Autodelete role not found.")
+                    .await?;
+            }
+        } else {
+            msg.channel_id
+                .say(&ctx.http, "Error retrieving guild information.")
+                .await?;
+        }
+    } else {
+        msg.channel_id
+            .say(&ctx.http, "Autodelete role not set.")
+            .await?;
+    }
+
     Ok(())
 }

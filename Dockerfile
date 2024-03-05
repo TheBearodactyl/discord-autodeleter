@@ -1,26 +1,37 @@
-# Use the Arch Linux base image
+# Use the official Arch Linux image
 FROM archlinux:latest
 
-# Update and install necessary packages
-RUN pacman -Syu --noconfirm && \
-  pacman -S --noconfirm pacman-contrib git rust base-devel
+# Install necessary packages and update system
+RUN pacman -Syu --noconfirm \
+  && pacman -S --noconfirm \
+  git \
+  rust \
+  base-devel
 
-# Initialize and populate pacman keyring, update system
-RUN pacman-key --init && pacman-key --populate archlinux && pacman -Syyuu --noconfirm
+# Initialize pacman keyring and populate archlinux keys
+RUN pacman-key --init \
+  && pacman-key --populate archlinux
+
+# Update system packages
+RUN pacman -Syyuu --noconfirm
 
 # Clone the repository
 RUN git clone https://github.com/TheBearodactyl/discord-autodeleter /discord-autodeleter
 
-# Copy .env file to the specified directory
-ADD .env /discord-autodeleter
+# Add .env file to the Docker image
+ADD .env /discord-autodeleter/
 
 # Set working directory
 WORKDIR /discord-autodeleter
 
 # Check if the release directory exists
-RUN if [ -d "/discord-autodeleter/target/release" ]; then \
+RUN if [ -d "/discord-deleter/target/release" ]; then \
   /discord-autodeleter/target/release/fuckyouspammer; \
   else \
-  cargo build --release -j16 && \
+  cargo build --release -j16; \
+  fi
+
+# Check if RUN environment variable is set to true, then execute the executable
+CMD if [ "$RUN" = "true" ]; then \
   /discord-autodeleter/target/release/fuckyouspammer; \
   fi
