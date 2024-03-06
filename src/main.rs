@@ -1,24 +1,19 @@
-mod commands;
-
 use {
     serenity::{
         async_trait,
         client::{Context, EventHandler},
-        framework::standard::{
-            macros::group,
-            StandardFramework,
-        },
+        framework::standard::CommandError,
+        framework::standard::{macros::*, *},
         model::{
             channel::Message,
             gateway::Ready,
-            id::{ChannelId, GuildId, RoleId},
+            id::{GuildId, RoleId, UserId},
         },
         prelude::TypeMapKey,
         Client,
     },
     std::{collections::HashSet, sync::Arc},
     tokio::sync::Mutex,
-    commands::*,
 };
 
 #[group]
@@ -35,14 +30,6 @@ impl Handler {
         Self {
             autodelete_roles,
             counter,
-        }
-    }
-
-    async fn send_whats_up_message(&self, ctx: &Context) {
-        let channel_id = ChannelId(917057579039989773);
-
-        if let Err(why) = channel_id.say(&ctx.http, "What's up ya'll? :D").await {
-            eprintln!("Error sending message: {:?}", why);
         }
     }
 }
@@ -83,10 +70,8 @@ impl EventHandler for Handler {
         });
     }
 
-    async fn ready(&self, ctx: Context, ready: Ready) {
+    async fn ready(&self, _ctx: Context, ready: Ready) {
         println!("{} is connected!", ready.user.name);
-
-        self.send_whats_up_message(&ctx).await;
     }
 }
 
@@ -122,4 +107,74 @@ async fn main() {
 
     let counter_value = counter.lock().await;
     println!("Total messages processed: {}", *counter_value);
+}
+
+#[help]
+pub async fn my_help(
+    ctx: &Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: std::collections::HashSet<serenity::model::id::UserId>,
+) -> CommandResult {
+    let _ = help_commands::with_embeds(ctx, msg, args, help_options, groups, owners).await;
+    Ok(())
+}
+
+#[command]
+pub async fn setrole(ctx: &Context, msg: &Message, mut args: Args) -> CommandResult {
+    // Check if the user has the specific role ID
+    let user = &msg.author;
+    let required_role_id: RoleId = RoleId(917076217985925200); // Replace YOUR_SPECIFIC_ROLE_ID with the actual role ID
+    if !user
+        .has_role(&ctx, GuildId(917057579039989770), required_role_id)
+        .await
+        .unwrap_or(false)
+    {
+        return Err(CommandError::from(
+            "You do not have permission to run this command.",
+        ));
+    }
+
+    // Continue with the command logic
+    let role_id: RoleId = args.single()?;
+    let mut data = ctx.data.write().await;
+    let autodelete_roles = data.get_mut::<Handler>().unwrap();
+    autodelete_roles.lock().await.insert(role_id);
+    msg.channel_id
+        .say(&ctx.http, format!("Autodelete role {} added.", role_id))
+        .await?;
+    Ok(())
+}
+
+#[command]
+pub async fn getrole(ctx: &Context, msg: &Message) -> CommandResult {
+    let data = ctx.data.read().await;
+    let autodelete_roles = data.get::<Handler>().unwrap();
+
+    let mut role_names = Vec::new();
+    for role_id in &*autodelete_roles.lock().await {
+        if let Some(guild) = ctx.cache.guild(GuildId(917057579039989770)).await {
+            if let Some(role) = guild.roles.get(role_id) {
+                role_names.push(role.name.clone());
+            }
+        }
+    }
+
+    if !role_names.is_empty() {
+        let role_list = role_names.join(", ");
+        msg.channel_id
+            .say(
+                &ctx.http,
+                format!("Current autodelete roles: {}", role_list),
+            )
+            .await?;
+    } else {
+        msg.channel_id
+            .say(&ctx.http, "No autodelete roles set.")
+            .await?;
+    }
+
+    Ok(())
 }
